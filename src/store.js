@@ -14,6 +14,24 @@ const state = {
 };
 
 const mutations = {
+  import(state, {data,name}){
+    const ds=readData(data,name);
+    state.dataSets = [...state.dataSets, ds];
+  },
+  setRef(state, idx){
+    if (typeof state.dataSets[idx] === "undefined"){
+      state.refData = state.dataSets.length-1;
+    } else {
+      state.refData = idx;
+    }
+  },
+  setTest(state, idx){
+    if (typeof state.dataSets[idx] === "undefined"){
+      state.testData = state.dataSets.length-1;
+    } else {
+      state.testData = idx;
+    }
+  }
 
 };
 
@@ -33,6 +51,32 @@ export default new Vuex.Store({
   actions,
   getters,
 })
+
+function readData(s,name) {
+  const validData = /^\s*\d+(\s+\d+){3}(\s+\d*.?\d+){3}\s*$/;
+  const array = s
+    .split('\n')
+    .filter(l => validData.test(l))
+    .map(l => l
+      .split(/\s+/)
+      .map(Number.parseFloat)
+    );
+  //first get a list of unique greyscale values
+  const ugs=new Set();
+  for(let a of array) for(let i=1;i<4;i++) ugs.add(a[i]);
+  const gs=[...ugs].sort((a,b)=>a-b);
+  //then build a map to find xyz values from the rgb
+  const map = new Map();
+  const sp=gs[gs.length-1]+1;
+  for(let a of array){
+    map.set((a[1]*sp+a[2])*sp+a[3],a.slice(4));
+  }
+  //get the required tesselation
+  const {RGB,TRI} = makeTesselation(gs);
+  //then use the map to build the xyz array
+  const XYZ = RGB.map(rgb=>map.get((rgb[0]*sp+rgb[1])*sp+rgb[2]));
+  return {RGB, XYZ, TRI, name};
+}
 
 function refData2dataSet(refData,name){
   function mixrgb(rgb1,rgb2,lin){

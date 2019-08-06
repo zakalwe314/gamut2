@@ -9,7 +9,7 @@
             <v-btn text v-on="on">Test Data</v-btn>
           </template>
           <v-list>
-            <v-list-item @click="">Import...</v-list-item>
+            <v-list-item @click="importTest">Import...</v-list-item>
             <v-divider></v-divider>
             <v-list-item @click="" v-for="set of sets" :key="set">{{set}}<v-icon v-if="testData.name===set">mdi-check</v-icon></v-list-item>
           </v-list>
@@ -20,7 +20,7 @@
             <v-btn text v-on="on">Reference Data</v-btn>
           </template>
           <v-list>
-            <v-list-item  @click="">Import...</v-list-item>
+            <v-list-item  @click="importRef">Import...</v-list-item>
             <v-divider></v-divider>
             <v-list-item @click="" v-for="set of sets" :key="set">{{set}}<v-icon v-if="refData.name===set">mdi-check</v-icon></v-list-item>
           </v-list>
@@ -50,7 +50,7 @@
   let scene, canvas, camera, controls, renderer;
 
 
-  import {mapGetters} from 'vuex';
+  import {mapGetters, mapActions, mapMutations} from 'vuex';
   export default {
     name: 'App',
     data: () => ({
@@ -59,6 +59,7 @@
       ...mapGetters(['sets','refData','testData'])
     },
     methods:{
+      ...mapMutations(['setTest','setRef','import']),
       animate(){
         requestAnimationFrame( this.animate );
         controls.update();
@@ -70,6 +71,29 @@
         scene = new THREE.Scene();
         scene.add(mesh);
         scene.add(wire);
+      },
+      load(){
+        return new Promise(res=>{
+          this.$refs.file.onchange = ()=>{
+            const reader = new FileReader();
+            reader.onload = ()=>{
+              this.import({data:reader.result, name:this.$refs.file.files[0].name});
+              res();
+            };
+            reader.readAsText(this.$refs.file.files[0]);
+          };
+          this.$refs.file.click();
+        });
+      },
+      async importRef(){
+        await this.load();
+        this.setRef();
+        this.updateScene();
+      },
+      async importTest(){
+        await this.load();
+        this.setTest();
+        this.updateScene();
       }
     },
     mounted(){
