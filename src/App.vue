@@ -11,7 +11,7 @@
           <v-list>
             <v-list-item @click="importTest">Import...</v-list-item>
             <v-divider></v-divider>
-            <v-list-item @click="" v-for="set of sets" :key="set">{{set}}<v-icon v-if="testData.name===set">mdi-check</v-icon></v-list-item>
+            <v-list-item @click="setTest(i)" v-for="(set,i) of sets" :key="set">{{set}}<v-icon v-if="testData.name===set">mdi-check</v-icon></v-list-item>
           </v-list>
         </v-menu>
 
@@ -22,7 +22,7 @@
           <v-list>
             <v-list-item  @click="importRef">Import...</v-list-item>
             <v-divider></v-divider>
-            <v-list-item @click="" v-for="set of sets" :key="set">{{set}}<v-icon v-if="refData.name===set">mdi-check</v-icon></v-list-item>
+            <v-list-item @click="setRef(i)" v-for="(set,i) of sets" :key="set">{{set}}<v-icon v-if="refData.name===set">mdi-check</v-icon></v-list-item>
           </v-list>
         </v-menu>
 
@@ -58,6 +58,10 @@
     computed:{
       ...mapGetters(['sets','refData','testData'])
     },
+    watch:{
+      refData(){this.updateScene()},
+      testData(){this.updateScene()},
+    },
     methods:{
       ...mapMutations(['setTest','setRef','import']),
       animate(){
@@ -88,12 +92,10 @@
       async importRef(){
         await this.load();
         this.setRef();
-        this.updateScene();
       },
       async importTest(){
         await this.load();
         this.setTest();
-        this.updateScene();
       }
     },
     mounted(){
