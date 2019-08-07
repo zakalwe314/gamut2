@@ -11,7 +11,11 @@ const state = {
   dataSets:Object.keys(refs).map(k=>refData2dataSet(refs[k],k)),
   refData:0,
   testData:0,
+  refWireFrame:null,
+  testMesh:null,
 };
+state.refWireFrame = makeWireFrame(makeCIELabMesh(state.dataSets[state.refData]));
+state.testMesh = makeCIELabMesh(state.dataSets[state.testData]);
 
 const mutations = {
   import(state, {data,name}){
@@ -19,17 +23,17 @@ const mutations = {
     state.dataSets = [...state.dataSets, ds];
   },
   setRef(state, idx){
-    if (typeof state.dataSets[idx] === "undefined"){
-      state.refData = state.dataSets.length-1;
-    } else {
+    if (typeof state.dataSets[idx] === "undefined") idx = state.dataSets.length-1;
+    if (state.refData !== idx){
       state.refData = idx;
+      state.refWireFrame = makeWireFrame(makeCIELabMesh(state.dataSets[idx]));
     }
   },
   setTest(state, idx){
-    if (typeof state.dataSets[idx] === "undefined"){
-      state.testData = state.dataSets.length-1;
-    } else {
+    if (typeof state.dataSets[idx] === "undefined") idx = state.dataSets.length-1;
+    if (state.testData !== idx){
       state.testData = idx;
+      state.testMesh = makeCIELabMesh(state.dataSets[idx]);
     }
   }
 
@@ -42,6 +46,8 @@ const actions = {
 const getters = {
   refData:state=>state.dataSets[state.refData],
   testData:state=>state.dataSets[state.testData],
+  refWireFrame:state=>state.refWireFrame,
+  testMesh:state=>state.testMesh,
   sets:state=>state.dataSets.map(ds=>ds.name),
 };
 
@@ -136,4 +142,81 @@ function makeTesselation(gs){
     }
   }
   return {TRI,RGB};
+}
+
+
+function makeCIELabMesh(s){
+  const {RGB, XYZ, TRI} = s;
+  const cols = RGB.map(c => (c[0]<<16) + (c[1]<<8) + c[2]);
+  const offset = sumArrays(RGB).map(v=>-v/RGB.length);
+  const points = offsetArrays(RGB,offset).map(p=>unitVector(p));
+
+  const max = maxArray(XYZ, a=>a[1]);
+  const bla = normArrays(XYZ,max).map(xyz2lab).map(p=>[p[2],p[0],p[1],]);
+
+  const geometry = new THREE.Geometry();
+  for (let i = 0; i < points.length; i += 1) {
+    geometry.vertices.push(new THREE.Vector3().fromArray(bla[i]));
+    //geometry.vertexColors.push(new THREE.Color(cols[i]));
+  }
+  let normal;
+  for (let i = 0; i < TRI.length; i += 1) {
+    const a = new THREE.Vector3().fromArray(bla[TRI[i][0]]);
+    const b = new THREE.Vector3().fromArray(bla[TRI[i][1]]);
+    const c = new THREE.Vector3().fromArray(bla[TRI[i][2]]);
+    normal  = new THREE.Vector3()
+      .crossVectors(
+        new THREE.Vector3().subVectors(b, a),
+        new THREE.Vector3().subVectors(c, a)
+      )
+      .normalize();
+    geometry.faces.push(
+      new THREE.Face3(TRI[i][0], TRI[i][1], TRI[i][2], normal, [new THREE.Color(cols[TRI[i][0]]),new THREE.Color(cols[TRI[i][1]]),new THREE.Color(cols[TRI[i][2]])])
+    );
+  }
+
+  return new THREE.Mesh(
+    geometry,
+    new THREE.MeshBasicMaterial( { vertexColors:THREE.VertexColors })
+  );
+}
+function labF(v) {
+  return v <= 0.008856 ? v * 7.787 + 16 / 116 : Math.pow(v, 1 / 3);
+}
+function xyz2lab(a){
+  const fy=labF(a[1]);
+  return [116*fy-16, 500*(labF(a[0])-fy), 200*(fy-labF(a[2]))];
+}
+function sumArrays(d){
+  return d.reduce((a,b)=>a?a.map((v,i)=>v+b[i]):b);
+}
+
+function offsetArrays(d,o){
+  return d.map(a=>a.map((v,i)=>v+o[i]));
+}
+
+function mag(a){
+  return Math.sqrt(a.reduce((t,v)=>t+v*v,0));
+}
+
+function unitVector(a){
+  const d=mag(a);
+  return a.map(v=>v/d);
+}
+
+function maxArray(a,fn){
+  return a.reduce((m,dat)=>{
+    const r={val:fn(dat),dat};
+    return m && m.val>=r.val ? m : r;
+  },null).dat;
+}
+function normArrays(d,n){
+  return d.map(a=>a.map((v,i)=>v/n[i]));
+}
+function makeWireFrame(mesh){
+  const helper                = new THREE.WireframeHelper(mesh);
+  helper.material.depthTest   = false;
+  helper.material.opacity     = 0.25;
+  helper.material.transparent = true;
+  return helper;
 }
