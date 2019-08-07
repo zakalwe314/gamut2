@@ -26,6 +26,21 @@
           </v-list>
         </v-menu>
 
+        <v-menu bottom right offset-y :close-on-content-click="false">
+          <template v-slot:activator="{on}">
+            <v-btn text v-on="on">Display</v-btn>
+          </template>
+          <v-list dense>
+            <v-list-item-title>Reference</v-list-item-title>
+            <v-list-item @click="">Mesh<v-icon v-if="refShow.mesh">mdi-check</v-icon></v-list-item>
+            <v-list-item @click="">Wire<v-icon v-if="refShow.wire">mdi-check</v-icon></v-list-item>
+            <v-divider></v-divider>
+            <v-list-item-title>Test</v-list-item-title>
+            <v-list-item @click="">Mesh<v-icon v-if="testShow.mesh">mdi-check</v-icon></v-list-item>
+            <v-list-item @click="">Wire<v-icon v-if="testShow.wire">mdi-check</v-icon></v-list-item>
+          </v-list>
+        </v-menu>
+
       </v-toolbar-items>
       <v-spacer></v-spacer>
       <v-toolbar-title class="headline text-uppercase">
@@ -35,6 +50,34 @@
 
     <v-content>
       <canvas ref="canvas"></canvas>
+      <div id="data">
+        <table>
+          <tr>
+            <th></th>
+            <th>File</th>
+            <th>Volume</th>
+            <th>Ratio</th>
+          </tr>
+          <tr>
+            <td>Reference</td>
+            <td>{{refData.name}}</td>
+            <td>{{refGeo.vol.toFixed(0)}}</td>
+            <td>-</td>
+          </tr>
+          <tr>
+            <td>Test</td>
+            <td>{{testData.name}}</td>
+            <td>{{testGeo.vol.toFixed(0)}}</td>
+            <td>{{(testGeo.vol/refGeo.vol).toFixed(3)}}</td>
+          </tr>
+          <tr>
+            <td>Intersection</td>
+            <td>-</td>
+            <td></td>
+            <td></td>
+          </tr>
+        </table>
+      </div>
     </v-content>
   </v-app>
 </template>
@@ -43,6 +86,35 @@
   canvas{
     width:100%;
     height:100%;
+  }
+  #data{
+    position:absolute;
+    padding:1em;
+    top:0;
+    left:0;
+    color: #fff7;
+  }
+  #data td{
+    padding: 0 0.5em;
+  }
+  #data td:nth-child(1){
+    text-align: right;
+    font-weight: bold;
+  }
+  #display{
+
+  }
+</style>
+
+<style>
+  html{
+    height:100%;
+    overflow: hidden !important;
+  }
+  * {
+    padding:0;
+    margin:0;
+    box-sizing: border-box;
   }
 </style>
 
@@ -56,11 +128,13 @@
     data: () => ({
     }),
     computed:{
-      ...mapGetters(['sets','refData','testData','testMesh','refWireFrame'])
+      ...mapGetters(['sets','refData','testData','testGeo','refGeo','testShow','refShow'])
     },
     watch:{
-      refWireFrame(){this.updateScene()},
-      testMesh(){this.updateScene()},
+      refGeo(){this.updateScene()},
+      testGeo(){this.updateScene()},
+      refShow(){this.updateScene()},
+      testShow(){this.updateScene()},
     },
     methods:{
       ...mapMutations(['setTest','setRef','import']),
@@ -71,8 +145,16 @@
       },
       updateScene(){
         scene = new THREE.Scene();
-        scene.add(this.testMesh);
-        scene.add(this.refWireFrame);
+        if(this.testGeo) {
+          for(let key of Object.keys(this.testShow)){
+            if (this.testShow[key]) scene.add(this.testGeo[key]);
+          }
+        }
+        if(this.refGeo) {
+          for(let key of Object.keys(this.refShow)){
+            if (this.refShow[key]) scene.add(this.refGeo[key]);
+          }
+        }
       },
       load(){
         return new Promise(res=>{

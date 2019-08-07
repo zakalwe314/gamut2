@@ -1,5 +1,6 @@
-import Vue from 'vue'
-import Vuex from 'vuex'
+import Vue from 'vue';
+import Vuex from 'vuex';
+import qh from "convex-hull";
 
 Vue.use(Vuex);
 
@@ -11,11 +12,13 @@ const state = {
   dataSets:Object.keys(refs).map(k=>refData2dataSet(refs[k],k)),
   refData:0,
   testData:0,
-  refWireFrame:null,
-  testMesh:null,
+  refGeo:null,
+  testGeo:null,
+  refShow:{mesh:false, wire:true},
+  testShow:{mesh:true, wire:false},
 };
-state.refWireFrame = makeWireFrame(makeCIELabMesh(state.dataSets[state.refData]));
-state.testMesh = makeCIELabMesh(state.dataSets[state.testData]);
+state.refGeo = makeWireFrame(makeCIELabMesh(state.dataSets[state.refData]));
+state.testGeo = makeWireFrame(makeCIELabMesh(state.dataSets[state.testData]));
 
 const mutations = {
   import(state, {data,name}){
@@ -26,14 +29,14 @@ const mutations = {
     if (typeof state.dataSets[idx] === "undefined") idx = state.dataSets.length-1;
     if (state.refData !== idx){
       state.refData = idx;
-      state.refWireFrame = makeWireFrame(makeCIELabMesh(state.dataSets[idx]));
+      state.refGeo = makeWireFrame(makeCIELabMesh(state.dataSets[idx]));
     }
   },
   setTest(state, idx){
     if (typeof state.dataSets[idx] === "undefined") idx = state.dataSets.length-1;
     if (state.testData !== idx){
       state.testData = idx;
-      state.testMesh = makeCIELabMesh(state.dataSets[idx]);
+      state.testGeo = makeCIELabMesh(state.dataSets[idx]);
     }
   }
 
@@ -46,9 +49,11 @@ const actions = {
 const getters = {
   refData:state=>state.dataSets[state.refData],
   testData:state=>state.dataSets[state.testData],
-  refWireFrame:state=>state.refWireFrame,
-  testMesh:state=>state.testMesh,
+  refGeo:state=>state.refGeo,
+  testGeo:state=>state.testGeo,
   sets:state=>state.dataSets.map(ds=>ds.name),
+  refShow:state=>state.refShow,
+  testShow:state=>state.testShow,
 };
 
 export default new Vuex.Store({
@@ -144,6 +149,34 @@ function makeTesselation(gs){
   return {TRI,RGB};
 }
 
+function volume(Lab, TRI){
+  let vol=0;
+  for(let tri of TRI){
+    const a=Lab[tri[0]], b=Lab[tri[1]], c=Lab[tri[2]];
+    const v1=[b[0]-c[0],b[1]-c[1],b[2]-c[2]];
+    const v2=[a[0]-b[0],a[1]-b[1],a[2]-b[2]];
+    vol += (a[0]*(v1[1]*v2[2]-v1[2]*v2[1])
+          + a[1]*(v1[2]*v2[0]-v1[0]*v2[2])
+          + a[2]*(v1[0]*v2[1]-v1[1]*v2[0]))/6;
+  }
+  return vol;
+}
+
+const shiftL=1000;
+function intersection(Lab1, Lab2){
+  function shift([x,y,z]){
+    const s=1+shiftL/Math.sqrt(x*x+y*y+z*z);
+    return [x*s, y*s, z*s];
+  }
+  function unshift([x,y,z]){
+    const s=1-shiftL/Math.sqrt(x*x+y*y+z*z);
+    return [x*s, y*s, z*s];
+  }
+  const Lab1s = Lab1.map(shift);
+  const Lab2s = lab2.map(shift);
+
+}
+
 
 function makeCIELabMesh(s){
   const {RGB, XYZ, TRI} = s;
@@ -166,19 +199,22 @@ function makeCIELabMesh(s){
     const c = new THREE.Vector3().fromArray(bla[TRI[i][2]]);
     normal  = new THREE.Vector3()
       .crossVectors(
+        new THREE.Vector3().subVectors(c, a),
         new THREE.Vector3().subVectors(b, a),
-        new THREE.Vector3().subVectors(c, a)
       )
       .normalize();
     geometry.faces.push(
-      new THREE.Face3(TRI[i][0], TRI[i][1], TRI[i][2], normal, [new THREE.Color(cols[TRI[i][0]]),new THREE.Color(cols[TRI[i][1]]),new THREE.Color(cols[TRI[i][2]])])
+      new THREE.Face3(TRI[i][0], TRI[i][2], TRI[i][1], normal, [new THREE.Color(cols[TRI[i][0]]),new THREE.Color(cols[TRI[i][2]]),new THREE.Color(cols[TRI[i][1]])])
     );
   }
 
-  return new THREE.Mesh(
-    geometry,
-    new THREE.MeshBasicMaterial( { vertexColors:THREE.VertexColors })
-  );
+  return {
+    mesh:new THREE.Mesh(
+      geometry,
+      new THREE.MeshBasicMaterial( { vertexColors:THREE.VertexColors })
+    ),
+    vol:volume(bla,TRI)
+  };
 }
 function labF(v) {
   return v <= 0.008856 ? v * 7.787 + 16 / 116 : Math.pow(v, 1 / 3);
@@ -213,10 +249,10 @@ function maxArray(a,fn){
 function normArrays(d,n){
   return d.map(a=>a.map((v,i)=>v/n[i]));
 }
-function makeWireFrame(mesh){
-  const helper                = new THREE.WireframeHelper(mesh);
-  helper.material.depthTest   = false;
-  helper.material.opacity     = 0.25;
-  helper.material.transparent = true;
-  return helper;
+function makeWireFrame({mesh,vol}){
+  const wire                = new THREE.WireframeHelper(mesh);
+  wire.material.depthTest   = false;
+  wire.material.opacity     = 0.25;
+  wire.material.transparent = true;
+  return {wire,mesh,vol};
 }
