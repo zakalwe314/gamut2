@@ -14,11 +14,13 @@ const state = {
   testData:0,
   refGeo:null,
   testGeo:null,
+  interGeo:null,
   refShow:{mesh:false, wire:true},
   testShow:{mesh:true, wire:false},
 };
 state.refGeo = makeWireFrame(makeCIELabMesh(state.dataSets[state.refData]));
 state.testGeo = makeWireFrame(makeCIELabMesh(state.dataSets[state.testData]));
+state.interGeo = makeInterGeo(state.refGeo, state.testGeo);
 
 const mutations = {
   import(state, {data,name}){
@@ -30,6 +32,7 @@ const mutations = {
     if (state.refData !== idx){
       state.refData = idx;
       state.refGeo = makeWireFrame(makeCIELabMesh(state.dataSets[idx]));
+      state.interGeo = makeInterGeo(state.refGeo, state.testGeo);
     }
   },
   setTest(state, idx){
@@ -37,6 +40,7 @@ const mutations = {
     if (state.testData !== idx){
       state.testData = idx;
       state.testGeo = makeWireFrame(makeCIELabMesh(state.dataSets[idx]));
+      state.interGeo = makeInterGeo(state.refGeo, state.testGeo);
     }
   },
   toggleShow(state,[set,field]){
@@ -60,6 +64,7 @@ const getters = {
   testData:state=>state.dataSets[state.testData],
   refGeo:state=>state.refGeo,
   testGeo:state=>state.testGeo,
+  interGeo:state=>state.interGeo,
   sets:state=>state.dataSets.map(ds=>ds.name),
   refShow:state=>state.refShow,
   testShow:state=>state.testShow,
@@ -171,21 +176,47 @@ function volume(Lab, TRI){
   return vol;
 }
 
-const shiftL=1000;
-function intersection(Lab1, Lab2){
-  function shift([x,y,z]){
-    const s=1+shiftL/Math.sqrt(x*x+y*y+z*z);
-    return [x*s, y*s, z*s];
+function intersection(LAB1, TRI1, LAB2, TRI2){
+  let shiftL=1000;
+  function shift([x, y, z]) {
+    const s = 1 + shiftL / Math.sqrt(x * x + y * y + z * z);
+    return [x * s, y * s, z * s];
   }
-  function unshift([x,y,z]){
-    const s=1-shiftL/Math.sqrt(x*x+y*y+z*z);
-    return [x*s, y*s, z*s];
-  }
-  const Lab1s = Lab1.map(shift);
-  const Lab2s = lab2.map(shift);
 
+  function unshift([x, y, z]) {
+    const s = 1 - shiftL / Math.sqrt(x * x + y * y + z * z);
+    return [x * s, y * s, z * s];
+  }
+  let convex=false;
+  let LAB1s,LAB2s,norms1,norms2;
+  do {
+    LAB1s = LAB1.map(shift);
+    LAB2s = LAB2.map(shift);
+    norms1=getNorms(LAB1s,TRI1);
+    norms2=getNorms(LAB2s,TRI2);
+    convex = LAB1s.every(lab=>isInside(lab,norms1)) && LAB2s.every(lab=>isInside(lab,norms2));
+    if (!convex) shiftL*=2;
+    if (shiftL>10000) throw new Error('something wrong');
+  } while(!convex);
 }
 
+function getNorms(LAB, TRI){
+  return TRI.map(tri=>{
+    const a=LAB[tri[0]], b=LAB[tri[1]], c=LAB[tri[2]];
+    const v1=[b[0]-c[0],b[1]-c[1],b[2]-c[2]];
+    const v2=[a[0]-b[0],a[1]-b[1],a[2]-b[2]];
+    const norm = [v1[1]*v2[2]-v1[2]*v2[1],v1[2]*v2[0]-v1[0]*v2[2],v1[0]*v2[1]-v1[1]*v2[0],0];
+    norm[3]=a[0]*norm[0]+a[1]*norm[1]+a[2]*norm[2];
+    return norm;
+  })
+}
+function isInside(pt,norms){
+  return norms.every(norm=>pt[0]*norm[0]+pt[1]*norm[1]+pt[2]*norm[2]>=norm[3]);
+}
+
+function makeInterGeo(geo1,geo2){
+  const {bla,TRI} = intersection(geo1.bla,geo1.TRI,geo2.bla,geo2.TRI);
+}
 
 function makeCIELabMesh(s){
   const {RGB, XYZ, TRI} = s;
@@ -222,7 +253,9 @@ function makeCIELabMesh(s){
       geometry,
       new THREE.MeshBasicMaterial( { vertexColors:THREE.VertexColors })
     ),
-    vol:volume(bla,TRI)
+    vol:volume(bla,TRI),
+    bla,
+    TRI
   };
 }
 function labF(v) {
@@ -258,10 +291,10 @@ function maxArray(a,fn){
 function normArrays(d,n){
   return d.map(a=>a.map((v,i)=>v/n[i]));
 }
-function makeWireFrame({mesh,vol}){
+function makeWireFrame({mesh,vol,bla,TRI}){
   const wire                = new THREE.WireframeHelper(mesh);
   wire.material.depthTest   = false;
   wire.material.opacity     = 0.25;
   wire.material.transparent = true;
-  return {wire,mesh,vol};
+  return {wire,mesh,vol,bla,TRI};
 }
