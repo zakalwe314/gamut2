@@ -36,10 +36,19 @@ const mutations = {
     if (typeof state.dataSets[idx] === "undefined") idx = state.dataSets.length-1;
     if (state.testData !== idx){
       state.testData = idx;
-      state.testGeo = makeCIELabMesh(state.dataSets[idx]);
+      state.testGeo = makeWireFrame(makeCIELabMesh(state.dataSets[idx]));
     }
+  },
+  toggleShow(state,[set,field]){
+	  switch(set){
+		  case "ref":
+			state.refShow = Object.assign({},state.refShow, {[field]:!state.refShow[field]});
+		  break;
+		  case "test":
+			state.testShow = Object.assign({},state.testShow, {[field]:!state.testShow[field]});
+		  break;
+	  }
   }
-
 };
 
 const actions = {

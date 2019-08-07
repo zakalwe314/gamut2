@@ -32,12 +32,12 @@
           </template>
           <v-list dense>
             <v-list-item-title>Reference</v-list-item-title>
-            <v-list-item @click="">Mesh<v-icon v-if="refShow.mesh">mdi-check</v-icon></v-list-item>
-            <v-list-item @click="">Wire<v-icon v-if="refShow.wire">mdi-check</v-icon></v-list-item>
+            <v-list-item @click="toggleShow(['ref','mesh'])">Mesh<v-icon v-if="refShow.mesh">mdi-check</v-icon></v-list-item>
+            <v-list-item @click="toggleShow(['ref','wire'])">Wire<v-icon v-if="refShow.wire">mdi-check</v-icon></v-list-item>
             <v-divider></v-divider>
             <v-list-item-title>Test</v-list-item-title>
-            <v-list-item @click="">Mesh<v-icon v-if="testShow.mesh">mdi-check</v-icon></v-list-item>
-            <v-list-item @click="">Wire<v-icon v-if="testShow.wire">mdi-check</v-icon></v-list-item>
+            <v-list-item @click="toggleShow(['test','mesh'])">Mesh<v-icon v-if="testShow.mesh">mdi-check</v-icon></v-list-item>
+            <v-list-item @click="toggleShow(['test','wire'])">Wire<v-icon v-if="testShow.wire">mdi-check</v-icon></v-list-item>
           </v-list>
         </v-menu>
 
@@ -137,7 +137,7 @@
       testShow(){this.updateScene()},
     },
     methods:{
-      ...mapMutations(['setTest','setRef','import']),
+      ...mapMutations(['setTest','setRef','import','toggleShow']),
       animate(){
         requestAnimationFrame( this.animate );
         controls.update();
