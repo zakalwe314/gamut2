@@ -38,6 +38,10 @@
             <v-list-item-title>Test</v-list-item-title>
             <v-list-item @click="toggleShow(['test','mesh'])">Mesh<v-icon v-if="testShow.mesh">mdi-check</v-icon></v-list-item>
             <v-list-item @click="toggleShow(['test','wire'])">Wire<v-icon v-if="testShow.wire">mdi-check</v-icon></v-list-item>
+            <v-divider></v-divider>
+            <v-list-item-title>Test</v-list-item-title>
+            <v-list-item @click="toggleShow(['inter','mesh'])">Mesh<v-icon v-if="interShow.mesh">mdi-check</v-icon></v-list-item>
+            <v-list-item @click="toggleShow(['inter','wire'])">Wire<v-icon v-if="interShow.wire">mdi-check</v-icon></v-list-item>
           </v-list>
         </v-menu>
 
@@ -128,13 +132,14 @@
     data: () => ({
     }),
     computed:{
-      ...mapGetters(['sets','refData','testData','testGeo','refGeo','interGeo','testShow','refShow'])
+      ...mapGetters(['sets','refData','testData','testGeo','refGeo','interGeo','testShow','refShow','interShow'])
     },
     watch:{
       refGeo(){this.updateScene()},
       testGeo(){this.updateScene()},
       refShow(){this.updateScene()},
       testShow(){this.updateScene()},
+      interShow(){this.updateScene()},
     },
     methods:{
       ...mapMutations(['setTest','setRef','import','toggleShow']),
@@ -153,6 +158,11 @@
         if(this.refGeo) {
           for(let key of Object.keys(this.refShow)){
             if (this.refShow[key]) scene.add(this.refGeo[key]);
+          }
+        }
+        if(this.interGeo) {
+          for(let key of Object.keys(this.interShow)){
+            if (this.interShow[key]) scene.add(this.interGeo[key]);
           }
         }
       },

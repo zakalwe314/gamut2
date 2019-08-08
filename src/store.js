@@ -17,6 +17,7 @@ const state = {
   interGeo:null,
   refShow:{mesh:false, wire:true},
   testShow:{mesh:true, wire:false},
+  interShow:{mesh:false, wire:false},
 };
 state.refGeo = makeWireFrame(makeCIELabMesh(state.dataSets[state.refData]));
 state.testGeo = makeWireFrame(makeCIELabMesh(state.dataSets[state.testData]));
@@ -48,9 +49,12 @@ const mutations = {
 		  case "ref":
 			state.refShow = Object.assign({},state.refShow, {[field]:!state.refShow[field]});
 		  break;
-		  case "test":
-			state.testShow = Object.assign({},state.testShow, {[field]:!state.testShow[field]});
-		  break;
+      case "test":
+        state.testShow = Object.assign({},state.testShow, {[field]:!state.testShow[field]});
+        break;
+      case "inter":
+        state.interShow = Object.assign({},state.interShow, {[field]:!state.interShow[field]});
+        break;
 	  }
   }
 };
@@ -68,6 +72,7 @@ const getters = {
   sets:state=>state.dataSets.map(ds=>ds.name),
   refShow:state=>state.refShow,
   testShow:state=>state.testShow,
+  interShow:state=>state.interShow,
 };
 
 export default new Vuex.Store({
