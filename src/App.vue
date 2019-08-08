@@ -73,8 +73,8 @@
           <tr>
             <td>Intersection</td>
             <td>-</td>
-            <td></td>
-            <td></td>
+            <td>{{interGeo.vol.toFixed(0)}}</td>
+            <td>{{(interGeo.vol/refGeo.vol).toFixed(3)}}</td>
           </tr>
         </table>
       </div>
@@ -128,7 +128,7 @@
     data: () => ({
     }),
     computed:{
-      ...mapGetters(['sets','refData','testData','testGeo','refGeo','testShow','refShow'])
+      ...mapGetters(['sets','refData','testData','testGeo','refGeo','interGeo','testShow','refShow'])
     },
     watch:{
       refGeo(){this.updateScene()},

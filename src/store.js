@@ -20,7 +20,7 @@ const state = {
 };
 state.refGeo = makeWireFrame(makeCIELabMesh(state.dataSets[state.refData]));
 state.testGeo = makeWireFrame(makeCIELabMesh(state.dataSets[state.testData]));
-state.interGeo = makeInterGeo(state.refGeo, state.testGeo);
+state.interGeo = makeWireFrame(makeInterGeo(state.refGeo, state.testGeo));
 
 const mutations = {
   import(state, {data,name}){
@@ -32,7 +32,7 @@ const mutations = {
     if (state.refData !== idx){
       state.refData = idx;
       state.refGeo = makeWireFrame(makeCIELabMesh(state.dataSets[idx]));
-      state.interGeo = makeInterGeo(state.refGeo, state.testGeo);
+      state.interGeo = makeWireFrame(makeInterGeo(state.refGeo, state.testGeo));
     }
   },
   setTest(state, idx){
@@ -40,7 +40,7 @@ const mutations = {
     if (state.testData !== idx){
       state.testData = idx;
       state.testGeo = makeWireFrame(makeCIELabMesh(state.dataSets[idx]));
-      state.interGeo = makeInterGeo(state.refGeo, state.testGeo);
+      state.interGeo = makeWireFrame(makeInterGeo(state.refGeo, state.testGeo));
     }
   },
   toggleShow(state,[set,field]){
@@ -115,7 +115,7 @@ function refData2dataSet(refData,name){
   const gs2lin=v=>Math.pow((v-mn)/(mx-mn),refData.gamma);
   const {RGB,TRI} = makeTesselation(gs);
   //First get the primaries in order 0K 1B 2G 3C 4R 5M 6Y 7W
-  const primaries = refData.primaries.sort((a,b)=>a[0]!==b[0]?a[0]-b[0]: a[1]!==b[1]?a[1]-b[1] : a[2]-b[2]);
+  const primaries = refData.primaries.sort(tripleCompare);
   //Now for each RGB value get the XYZ from the supplied primaries
   const XYZ = RGB.map(function(rgb){
     const lr=gs2lin(rgb[0]),lg=gs2lin(rgb[1]),lb=gs2lin(rgb[2]);
@@ -176,28 +176,63 @@ function volume(Lab, TRI){
   return vol;
 }
 
-function intersection(LAB1, TRI1, LAB2, TRI2){
-  let shiftL=1000;
-  function shift([x, y, z]) {
-    const s = 1 + shiftL / Math.sqrt(x * x + y * y + z * z);
-    return [x * s, y * s, z * s];
+const tripleCompare = (a,b) => a[0]!==b[0]?a[0]-b[0]: a[1]!==b[1]?a[1]-b[1] : a[2]-b[2];
+
+
+
+function unique(arr,tol){
+  const tol2=tol*tol;
+  arr=arr.slice().sort(tripleCompare);
+  for(let n=arr.length-1;n>0;--n){
+    let i=0,d=arr[n][0]-arr[n-1][0],t=d*d;
+    if (t>=tol2) continue;
+    d=arr[n][1]-arr[n-1][1];t+=d*d;
+    if (t>=tol2) continue;
+    d=arr[n][2]-arr[n-1][2];t+=d*d;
+    if (t<tol2) arr.splice(n,1);
+  }
+  return arr;
+}
+
+function intersection(BLA1, BLA2){
+  BLA1=unique(BLA1,0.01);
+  BLA2=unique(BLA2,0.01);
+  let shiftL=0;
+  function shift([b, L, a]) {
+    L-=50;
+    const s = 1+shiftL/Math.sqrt(b * b + L * L + a * a);
+    // const s = Math.pow(b * b + L * L + a * a,-0.46875)
+    return [b * s, L * s + 50, a * s];
   }
 
-  function unshift([x, y, z]) {
-    const s = 1 - shiftL / Math.sqrt(x * x + y * y + z * z);
-    return [x * s, y * s, z * s];
+  function unshift([b, L, a]) {
+    L-=50;
+    const s = 1-shiftL/Math.sqrt(b * b + L * L + a * a);
+    return [b * s, L * s + 50, a * s];
   }
   let convex=false;
-  let LAB1s,LAB2s,norms1,norms2;
-  do {
-    LAB1s = LAB1.map(shift);
-    LAB2s = LAB2.map(shift);
-    norms1=getNorms(LAB1s,TRI1);
-    norms2=getNorms(LAB2s,TRI2);
-    convex = LAB1s.every(lab=>isInside(lab,norms1)) && LAB2s.every(lab=>isInside(lab,norms2));
-    if (!convex) shiftL*=2;
-    if (shiftL>10000) throw new Error('something wrong');
-  } while(!convex);
+  let BLA1s,BLA2s,TRI1,TRI2;
+  while(!convex) {
+    BLA1s = BLA1.map(shift);
+    BLA2s = BLA2.map(shift);
+    TRI1 = qh(BLA1s);
+    TRI2 = qh(BLA2s);
+    const ut1=new Set(TRI1.flat());
+    const ut2=new Set(TRI2.flat());
+
+    convex = ut1.size === BLA1.length && ut2.size===BLA2.length;
+    // console.log(shiftL, convex,ut1.size, ut2.size, BLA1.length);
+    if (!convex) shiftL+=100+shiftL;
+    if (shiftL>1000000) throw new Error('Could not make the surfaces concave');
+  }
+  const norms1 = getNorms(BLA1s,TRI1);
+  const norms2 = getNorms(BLA2s,TRI2);
+  const keep1 = BLA1s.map(bla=>isInside(bla,norms2));
+  const keep2 = BLA2s.map(bla=>isInside(bla,norms1));
+  const BLAs = [...BLA1s.filter((v,i)=>keep1[i]),...BLA2s.filter((v,i)=>keep2[i])];
+  const BLA = [...BLA1.filter((v,i)=>keep1[i]),...BLA2.filter((v,i)=>keep2[i])];
+  const TRI = qh(BLAs).map(a=>[a[1],a[0],a[2]]);
+  return {BLA,TRI};
 }
 
 function getNorms(LAB, TRI){
@@ -206,16 +241,53 @@ function getNorms(LAB, TRI){
     const v1=[b[0]-c[0],b[1]-c[1],b[2]-c[2]];
     const v2=[a[0]-b[0],a[1]-b[1],a[2]-b[2]];
     const norm = [v1[1]*v2[2]-v1[2]*v2[1],v1[2]*v2[0]-v1[0]*v2[2],v1[0]*v2[1]-v1[1]*v2[0],0];
-    norm[3]=a[0]*norm[0]+a[1]*norm[1]+a[2]*norm[2];
+    const l=Math.sqrt(norm[0]*norm[0]+norm[1]*norm[1]+norm[2]*norm[2]);
+    norm[0]/=l;
+    norm[1]/=l;
+    norm[2]/=l;
+    norm[3]=b[0]*norm[0]+b[1]*norm[1]+b[2]*norm[2];
     return norm;
   })
 }
+let n=100;
 function isInside(pt,norms){
-  return norms.every(norm=>pt[0]*norm[0]+pt[1]*norm[1]+pt[2]*norm[2]>=norm[3]);
+  return norms.every(norm=>pt[0]*norm[0]+pt[1]*norm[1]+pt[2]*norm[2]>=1.0001*norm[3]);
 }
 
 function makeInterGeo(geo1,geo2){
-  const {bla,TRI} = intersection(geo1.bla,geo1.TRI,geo2.bla,geo2.TRI);
+  const {BLA:bla,TRI} = intersection(geo1.bla,geo2.bla);
+
+  const geometry = new THREE.Geometry();
+  for (let i = 0; i < bla.length; i += 1) {
+    geometry.vertices.push(new THREE.Vector3().fromArray(bla[i]));
+    //geometry.vertexColors.push(new THREE.Color(cols[i]));
+  }
+  let normal;
+  for (let i = 0; i < TRI.length; i += 1) {
+    const a = new THREE.Vector3().fromArray(bla[TRI[i][0]]);
+    const b = new THREE.Vector3().fromArray(bla[TRI[i][1]]);
+    const c = new THREE.Vector3().fromArray(bla[TRI[i][2]]);
+    normal  = new THREE.Vector3()
+      .crossVectors(
+        new THREE.Vector3().subVectors(c, a),
+        new THREE.Vector3().subVectors(b, a),
+      )
+      .normalize();
+    geometry.faces.push(
+      new THREE.Face3(TRI[i][0], TRI[i][2], TRI[i][1], normal, [new THREE.Color(0x777777),new THREE.Color(0x777777),new THREE.Color(0x777777)])
+    );
+  }
+
+  return {
+    mesh:new THREE.Mesh(
+      geometry,
+      new THREE.MeshBasicMaterial( { vertexColors:THREE.VertexColors })
+    ),
+    vol:volume(bla,TRI),
+    bla,
+    TRI
+  };
+
 }
 
 function makeCIELabMesh(s){
