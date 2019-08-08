@@ -232,11 +232,11 @@ function intersection(BLA1, BLA2){
   }
   const norms1 = getNorms(BLA1s,TRI1);
   const norms2 = getNorms(BLA2s,TRI2);
-  const keep1 = BLA1s.map(bla=>isInside(bla,norms2));
-  const keep2 = BLA2s.map(bla=>isInside(bla,norms1));
-  const BLAs = [...BLA1s.filter((v,i)=>keep1[i]),...BLA2s.filter((v,i)=>keep2[i])];
-  const BLA = [...BLA1.filter((v,i)=>keep1[i]),...BLA2.filter((v,i)=>keep2[i])];
+  console.log(BLA1s.filter(bla=>isInside(bla,norms1)).length);
+  const BLAs = unique([...BLA1s.filter(bla=>isInside(bla,norms2)),...BLA2s.filter(bla=>isInside(bla,norms1))],0.01);
+  console.log(BLAs.length);
   const TRI = qh(BLAs).map(a=>[a[1],a[0],a[2]]);
+  const BLA = BLAs.map(unshift);
   return {BLA,TRI};
 }
 
@@ -254,7 +254,7 @@ function getNorms(LAB, TRI){
     return norm;
   })
 }
-let n=100;
+
 function isInside(pt,norms){
   return norms.every(norm=>pt[0]*norm[0]+pt[1]*norm[1]+pt[2]*norm[2]>=1.0001*norm[3]);
 }
