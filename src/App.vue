@@ -31,15 +31,15 @@
             <v-btn text v-on="on">Display</v-btn>
           </template>
           <v-list dense>
-            <v-list-item-title>Reference</v-list-item-title>
+            <v-list-item><b>Reference</b></v-list-item>
             <v-list-item @click="toggleShow(['ref','mesh'])">Mesh<v-icon v-if="refShow.mesh">mdi-check</v-icon></v-list-item>
             <v-list-item @click="toggleShow(['ref','wire'])">Wire<v-icon v-if="refShow.wire">mdi-check</v-icon></v-list-item>
             <v-divider></v-divider>
-            <v-list-item-title>Test</v-list-item-title>
+            <v-list-item><b>Test</b></v-list-item>
             <v-list-item @click="toggleShow(['test','mesh'])">Mesh<v-icon v-if="testShow.mesh">mdi-check</v-icon></v-list-item>
             <v-list-item @click="toggleShow(['test','wire'])">Wire<v-icon v-if="testShow.wire">mdi-check</v-icon></v-list-item>
             <v-divider></v-divider>
-            <v-list-item-title>Test</v-list-item-title>
+            <v-list-item><b>Intersection</b></v-list-item>
             <v-list-item @click="toggleShow(['inter','mesh'])">Mesh<v-icon v-if="interShow.mesh">mdi-check</v-icon></v-list-item>
             <v-list-item @click="toggleShow(['inter','wire'])">Wire<v-icon v-if="interShow.wire">mdi-check</v-icon></v-list-item>
           </v-list>

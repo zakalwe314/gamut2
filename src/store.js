@@ -184,83 +184,45 @@ function volume(Lab, TRI){
 const tripleCompare = (a,b) => a[0]!==b[0]?a[0]-b[0]: a[1]!==b[1]?a[1]-b[1] : a[2]-b[2];
 
 
-
-function unique(arr,tol){
-  const tol2=tol*tol;
-  arr=arr.slice().sort(tripleCompare);
-  for(let n=arr.length-1;n>0;--n){
-    let i=0,d=arr[n][0]-arr[n-1][0],t=d*d;
-    if (t>=tol2) continue;
-    d=arr[n][1]-arr[n-1][1];t+=d*d;
-    if (t>=tol2) continue;
-    d=arr[n][2]-arr[n-1][2];t+=d*d;
-    if (t<tol2) arr.splice(n,1);
-  }
-  return arr;
-}
-
-function intersection(BLA1, BLA2){
-  BLA1=unique(BLA1,0.01);
-  BLA2=unique(BLA2,0.01);
-  let shiftL=0;
-  function shift([b, L, a]) {
+function intersection2(BLAref, TRIref,BLAtest, TRItest, ){
+  const cross = (v1,v2)=>[v1[1]*v2[2]-v1[2]*v2[1],v1[2]*v2[0]-v1[0]*v2[2],v1[0]*v2[1]-v1[1]*v2[0]];
+  const vect = (v1,v2)=>[v2[0]-v1[0], v2[1]-v1[1], v2[2]-v1[2]];
+  const dot = (v1,v2)=>v1[0]*v2[0]+v1[1]*v2[1]+v1[2]*v2[2];
+  const T=TRIref.map(([i0,i1,i2])=>{
+    const v0=BLAref[i0], v1=BLAref[i1], v2=BLAref[i2];
+    const e1=vect(v0,v1);
+    const e2=vect(v0,v2);
+    const o =vect(v0,[0,50,0]);
+    const e2e1 = cross(e2,e1);
+    const e2o = cross(e2,o);
+    const oe1 = cross(o,e1);
+    const e2oe1 = dot(e2,oe1);
+    return [...e2e1,...e2o,...oe1,e2oe1];
+  });
+  const BLA = BLAtest.map(([b,L,a])=>{
     L-=50;
-    const s = 1+shiftL/Math.sqrt(b * b + L * L + a * a);
-    // const s = Math.pow(b * b + L * L + a * a,-0.46875)
-    return [b * s, L * s + 50, a * s];
-  }
-
-  function unshift([b, L, a]) {
-    L-=50;
-    const s = 1-shiftL/Math.sqrt(b * b + L * L + a * a);
-    return [b * s, L * s + 50, a * s];
-  }
-  let convex=false;
-  let BLA1s,BLA2s,TRI1,TRI2;
-  while(!convex) {
-    BLA1s = BLA1.map(shift);
-    BLA2s = BLA2.map(shift);
-    TRI1 = qh(BLA1s);
-    TRI2 = qh(BLA2s);
-    const ut1=new Set(TRI1.flat());
-    const ut2=new Set(TRI2.flat());
-
-    convex = ut1.size === BLA1.length && ut2.size===BLA2.length;
-    // console.log(shiftL, convex,ut1.size, ut2.size, BLA1.length);
-    if (!convex) shiftL+=100+shiftL;
-    if (shiftL>1000000) throw new Error('Could not make the surfaces concave');
-  }
-  const norms1 = getNorms(BLA1s,TRI1);
-  const norms2 = getNorms(BLA2s,TRI2);
-  console.log(BLA1s.filter(bla=>isInside(bla,norms1)).length);
-  const BLAs = unique([...BLA1s.filter(bla=>isInside(bla,norms2)),...BLA2s.filter(bla=>isInside(bla,norms1))],0.01);
-  console.log(BLAs.length);
-  const TRI = qh(BLAs).map(a=>[a[1],a[0],a[2]]);
-  const BLA = BLAs.map(unshift);
-  return {BLA,TRI};
+    const l=Math.sqrt(b*b+L*L+a*a),il=1/l;
+    const dir=[b*il,L*il,a*il];
+    for (let t of T){
+      const idet = 1/(dot(dir,t.slice(0,3)));
+      const d = t[9]*idet;
+      if (d>=0){
+        const u = dot(dir,t.slice(3,6))*idet;
+        if (u>=-0.0001) {
+          const v = dot(dir,t.slice(6,9))*idet;
+          if (v>=-0.0001 && (u+v)<=1.0001) {
+            return d>l*1.0001 ? [b,L+50,a] : [dir[0]*d, dir[1]*d+50, dir[2]*d];
+          }
+        }
+      }
+    }
+  });
+  return {BLA, TRI:TRItest};
 }
 
-function getNorms(LAB, TRI){
-  return TRI.map(tri=>{
-    const a=LAB[tri[0]], b=LAB[tri[1]], c=LAB[tri[2]];
-    const v1=[b[0]-c[0],b[1]-c[1],b[2]-c[2]];
-    const v2=[a[0]-b[0],a[1]-b[1],a[2]-b[2]];
-    const norm = [v1[1]*v2[2]-v1[2]*v2[1],v1[2]*v2[0]-v1[0]*v2[2],v1[0]*v2[1]-v1[1]*v2[0],0];
-    const l=Math.sqrt(norm[0]*norm[0]+norm[1]*norm[1]+norm[2]*norm[2]);
-    norm[0]/=l;
-    norm[1]/=l;
-    norm[2]/=l;
-    norm[3]=b[0]*norm[0]+b[1]*norm[1]+b[2]*norm[2];
-    return norm;
-  })
-}
-
-function isInside(pt,norms){
-  return norms.every(norm=>pt[0]*norm[0]+pt[1]*norm[1]+pt[2]*norm[2]>=1.0001*norm[3]);
-}
 
 function makeInterGeo(geo1,geo2){
-  const {BLA:bla,TRI} = intersection(geo1.bla,geo2.bla);
+  const {BLA:bla,TRI} = intersection2(geo1.bla,geo1.TRI, geo2.bla, geo2.TRI);
 
   const geometry = new THREE.Geometry();
   for (let i = 0; i < bla.length; i += 1) {
