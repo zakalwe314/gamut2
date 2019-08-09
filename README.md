@@ -1,4 +1,8 @@
 # gamut2
+A CIELab gamut visualisation and volume calculation tool.
+
+The app is hosted [here](https://zakalwe314.github.io/gamut2/)
+
 
 ## Project setup
 ```
@@ -13,21 +17,6 @@ npm run serve
 ### Compiles and minifies for production
 ```
 npm run build
-```
-
-### Run your tests
-```
-npm run test
-```
-
-### Lints and fixes files
-```
-npm run lint
-```
-
-### Run your unit tests
-```
-npm run test:unit
 ```
 
 ### Customize configuration
