@@ -328,7 +328,12 @@ function maxArray(a,fn){
   },null).dat;
 }
 function normArrays(d,n){
-  return d.map(a=>a.map((v,i)=>v/n[i]));
+  const D50 = [0.9642957, 1, 0.8251046];
+  const LMSn = XYZ2LMS(n);
+  const LMSa = XYZ2LMS(D50);
+  const rL=LMSa[0]/LMSn[0],rM=LMSa[1]/LMSn[1],rS=LMSa[2]/LMSn[2];
+  const corr = ([L,M,S])=>[rL*L, rM*M, rS*S];
+  return d.map(XYZ2LMS).map(corr).map(LMS2XYZ).map(a=>a.map((v,i)=>v/D50[i]));
 }
 function makeWireFrame({mesh,vol,bla,TRI}){
   const wire                = new THREE.WireframeHelper(mesh);
@@ -336,4 +341,20 @@ function makeWireFrame({mesh,vol,bla,TRI}){
   wire.material.opacity     = 0.25;
   wire.material.transparent = true;
   return {wire,mesh,vol,bla,TRI};
+}
+
+function XYZ2LMS([X,Y,Z]){
+  return [
+    0.8951*X+0.2664*Y-0.1614*Z,
+    -0.7502*X+1.7135*Y+0.0367*Z,
+    0.0389*X-0.0685*Y+1.0296*Z
+  ]
+}
+
+function LMS2XYZ([L,M,S]){
+  return [
+    0.98699*L-0.14705*M+0.15996*S,
+    0.43231*L+0.51836*M+0.049291*S,
+    -0.00853*L+0.04004*M+0.96849*S
+  ]
 }
