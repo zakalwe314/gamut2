@@ -1,6 +1,7 @@
 import Vue from 'vue';
 import Vuex from 'vuex';
-import qh from "convex-hull";
+import bradfordCA from "./BradfordCA";
+import {xyz2lab} from "./CIELab";
 
 Vue.use(Vuex);
 
@@ -304,13 +305,7 @@ function makeCIELabMesh(s){
     TRI
   };
 }
-function labF(v) {
-  return v <= 0.008856 ? v * 7.787 + 16 / 116 : Math.pow(v, 1 / 3);
-}
-function xyz2lab(a){
-  const fy=labF(a[1]);
-  return [116*fy-16, 500*(labF(a[0])-fy), 200*(fy-labF(a[2]))];
-}
+
 function sumArrays(d){
   return d.reduce((a,b)=>a?a.map((v,i)=>v+b[i]):b);
 }
@@ -340,34 +335,16 @@ function maxArray(a,fn){
     return m && m.val>=r.val ? m : r;
   },null).dat;
 }
+
 function normArrays(d,n){
   const D50 = [0.9642957, 1, 0.8251046];
-  const LMSn = XYZ2LMS(n);
-  const LMSa = XYZ2LMS(D50);
-  const rL=LMSa[0]/LMSn[0],rM=LMSa[1]/LMSn[1],rS=LMSa[2]/LMSn[2];
-  const corr = ([L,M,S])=>[rL*L, rM*M, rS*S];
-  return d.map(XYZ2LMS).map(corr).map(LMS2XYZ).map(a=>a.map((v,i)=>v/D50[i]));
+  return bradfordCA(d,n,D50).map(a=>a.map((v,i)=>v/D50[i]));
 }
+
 function makeWireFrame({mesh,vol,bla,TRI}){
   const wire                = new THREE.WireframeHelper(mesh);
   wire.material.depthTest   = false;
   wire.material.opacity     = 0.25;
   wire.material.transparent = true;
   return {wire,mesh,vol,bla,TRI};
-}
-
-function XYZ2LMS([X,Y,Z]){
-  return [
-    0.8951*X+0.2664*Y-0.1614*Z,
-    -0.7502*X+1.7135*Y+0.0367*Z,
-    0.0389*X-0.0685*Y+1.0296*Z
-  ]
-}
-
-function LMS2XYZ([L,M,S]){
-  return [
-    0.98699*L-0.14705*M+0.15996*S,
-    0.43231*L+0.51836*M+0.049291*S,
-    -0.00853*L+0.04004*M+0.96849*S
-  ]
 }
