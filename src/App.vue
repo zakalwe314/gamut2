@@ -167,11 +167,13 @@
         }
       },
       load(){
-        return new Promise(res=>{
+        return new Promise((res,rej)=>{
           this.$refs.file.onchange = ()=>{
             const reader = new FileReader();
             reader.onload = ()=>{
-              this.import({data:reader.result, name:this.$refs.file.files[0].name});
+              try {
+                this.import({data: reader.result, name: this.$refs.file.files[0].name});
+              } catch(e){return rej(e);}
               res();
             };
             reader.readAsText(this.$refs.file.files[0]);

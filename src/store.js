@@ -83,14 +83,14 @@ export default new Vuex.Store({
 })
 
 function readData(s,name) {
-  const validData = /^\s*\d+(\s+\d+){3}(\s+\d*.?\d+){3}\s*$/;
+  const validData = /^\s*\d+(\s+\d+){3}(\s+-?[1-9](?:\.\d+)?[Ee][-+]?\d+){3}\s*$/;
   const array = s
     .split('\n')
-    .filter(l => validData.test(l))
-    .map(l => l
-      .split(/\s+/)
-      .map(Number.parseFloat)
-    );
+    .map(s=>{
+      const a=s.split(/\s+/).map(Number.parseFloat).slice(0,7);
+      if (a.every(v=>!Number.isNaN(v))) return a;
+    })
+    .filter(a=>!!a);
   //first get a list of unique greyscale values
   const ugs=new Set();
   for(let a of array) for(let i=1;i<4;i++) ugs.add(a[i]);
@@ -105,6 +105,13 @@ function readData(s,name) {
   const {RGB,TRI} = makeTesselation(gs);
   //then use the map to build the xyz array
   const XYZ = RGB.map(rgb=>map.get((rgb[0]*sp+rgb[1])*sp+rgb[2]));
+  if (XYZ.some(xyz=>!xyz)){
+    console.log('RGB data missing from file');
+    RGB.forEach((rgb,i)=>{
+      if (!XYZ[i]) console.log(rgb);
+    });
+    throw new Error('RGB data missing!');
+  }
   return {RGB, XYZ, TRI, name};
 }
 
@@ -323,7 +330,13 @@ function unitVector(a){
 
 function maxArray(a,fn){
   return a.reduce((m,dat)=>{
-    const r={val:fn(dat),dat};
+    let r;
+    try {
+      r = {val: fn(dat), dat};
+    } catch (e){
+      console.log('error',m,r);
+      return m;
+    }
     return m && m.val>=r.val ? m : r;
   },null).dat;
 }
