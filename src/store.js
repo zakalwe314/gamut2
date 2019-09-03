@@ -2,6 +2,7 @@ import Vue from 'vue';
 import Vuex from 'vuex';
 import bradfordCA from "./BradfordCA";
 import {xyz2lab} from "./CIELab";
+import {makeTesselation} from "./iecTesselation";
 
 Vue.use(Vuex);
 
@@ -83,15 +84,16 @@ export default new Vuex.Store({
   getters,
 })
 
+function* parseFile(s){
+  for (let line of s.split('\n')){
+    let a=line.split(/\s+/).map(Number.parseFloat).slice(0,7);
+    if (a.length === 7 && ~a.some(Number.isNaN)) yield a;
+  }
+}
+
+
 function readData(s,name) {
-  const validData = /^\s*\d+(\s+\d+){3}(\s+-?[1-9](?:\.\d+)?[Ee][-+]?\d+){3}\s*$/;
-  const array = s
-    .split('\n')
-    .map(s=>{
-      const a=s.split(/\s+/).map(Number.parseFloat).slice(0,7);
-      if (a.every(v=>!Number.isNaN(v))) return a;
-    })
-    .filter(a=>!!a);
+  const array = Array.from(parseFile(s));
   //first get a list of unique greyscale values
   const ugs=new Set();
   for(let a of array) for(let i=1;i<4;i++) ugs.add(a[i]);
@@ -140,41 +142,6 @@ function refData2dataSet(refData,name){
   return {RGB, XYZ, TRI, name};
 }
 
-function makeTesselation(gs){
-  const n=gs.length-1;
-  const mx=gs[n], mn=gs[0];
-  const faces = [
-    [mn,0,1,2],
-    [mn,2,0,1],
-    [mn,1,2,0],
-    [mx,0,2,1],
-    [mx,1,0,2],
-    [mx,2,1,0],
-  ];
-  const TRI=[],RGB=[];
-  for (let face of faces){
-    const st=RGB.length;
-    for(let q=0;q<=n;q++){
-      for(let p=0;p<=n;p++){
-        const rgb=[0,0,0];
-        rgb[face[1]]=face[0];
-        rgb[face[2]]=gs[q];
-        rgb[face[3]]=gs[p];
-        RGB.push(rgb);
-      }
-    }
-    for(let q=0;q<n;q++){
-      for(let p=0;p<n;p++){
-        const m=st + (n+1)*q + p;
-        TRI.push(
-          [m,m+n+1,m+1],
-          [m+n+1,m+n+2,m+1],
-        )
-      }
-    }
-  }
-  return {TRI,RGB};
-}
 
 function volume(Lab, TRI){
   let vol=0;

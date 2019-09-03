@@ -13,3 +13,28 @@ new Vue({
   vuetify,
   render: h => h(App)
 }).$mount('#app')
+
+
+/**
+ * Some thought regarding a final, more complete, app structure.
+ *
+ * Vue components:
+ * A gamut scene
+ * A gamut surface
+ * A gamut wireframe
+ * A file loader
+ * App containing a gamut scene and the menus
+ *
+ * Vuex store:
+ * A list of gamuts
+ * The selections of which are processed.
+ *
+ * Class:
+ * Gamut
+ *    constructor(array data)
+ *    constructor({TRI,Lab})
+ *    error: string or null
+ *    TRI, RGB, XYZ, Lab
+ *    intersectWith(ref):gamut
+ *
+ **/
